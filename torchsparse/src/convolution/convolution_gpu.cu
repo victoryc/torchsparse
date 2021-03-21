@@ -1,35 +1,38 @@
 #ifndef GPU_CONVOLUTION
 #define GPU_CONVOLUTION
 #include "../common/gpu.cuh"
-#include <iostream>
 #include <chrono>
 #include <cstdio>
+#include <iostream>
 
-__global__ void gather_kernel(const int n_k, const int n_in, const int c, 
-                               const float *in_feat, float *out_feat, const int *kmap,
-                               const bool transpose){
+__global__ void gather_kernel(const int n_k, const int n_in, const int c,
+                              const float *in_feat, float *out_feat,
+                              const int *kmap, const bool transpose) {
 
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
-    int i = index / c;
-    int j = index % c;
-    if(i >= n_k) return;
-    int in_pos = kmap[2 * i + transpose];
-    if(in_pos < 0) return;
-    out_feat[i * c + j] = in_feat[in_pos * c + j];
+  int index = blockIdx.x * blockDim.x + threadIdx.x;
+  int i = index / c;
+  int j = index % c;
+  if (i >= n_k)
+    return;
+  int in_pos = kmap[2 * i + transpose];
+  if (in_pos < 0)
+    return;
+  out_feat[i * c + j] = in_feat[in_pos * c + j];
 }
 
+__global__ void scatter_kernel(const int n_in, const int n_out, const int c,
+                               const float *in_feat, float *out_feat,
+                               const int *kmap, const bool transpose) {
 
-__global__ void scatter_kernel(const int n_in, const int n_out, const int c, 
-                               const float *in_feat, float *out_feat, const int *kmap,
-                               const bool transpose){
-
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
-    int i = index / c;
-    int j = index % c;
-    if(i >= n_in) return;
-    int out_pos = kmap[2 * i + 1 - transpose];
-    if(out_pos < 0) return;
-    out_feat[out_pos * c + j] += in_feat[i * c + j];
+  int index = blockIdx.x * blockDim.x + threadIdx.x;
+  int i = index / c;
+  int j = index % c;
+  if (i >= n_in)
+    return;
+  int out_pos = kmap[2 * i + 1 - transpose];
+  if (out_pos < 0)
+    return;
+  out_feat[out_pos * c + j] += in_feat[i * c + j];
 }
 
 // Given each output, get an input feature for each corresponding kernel weight
@@ -83,17 +86,15 @@ __global__ void matmul(const float *A, const int wA, const int hA,
   // Csub is used to store the element of the block sub-matrix
   // that is computed by the thread
   float Csub = 0;
-  
+
   // out_npoints is  the output size.
   // conv: out_npoints <= hA; deconv: out_npoints >= hA.
   // be careful about in_row_!
-  const int out_row_ = y < nmap_size ?  neighbor_map[2 * y + 1]: -1;
+  const int out_row_ = y < nmap_size ? neighbor_map[2 * y + 1] : -1;
   const int in_row_ = y < nmap_size ? neighbor_map[2 * y] : -1;
   const int out_row = transpose ? in_row_ : out_row_;
   const int in_row = transpose ? out_row_ : in_row_;
-    
-  
-  
+
   // Loop over all the sub-matrices of A and B
   // required to compute the block sub-matrix
   for (int s = 0; s < wA; s += BLOCK_SIZE) {
@@ -108,22 +109,22 @@ __global__ void matmul(const float *A, const int wA, const int hA,
     // Load the matrices from device memory
     // to shared memory; each thread loads
     // one element of each matrix
-    
 
-    As[ty][tx] = ((s + tx) < wA && y < hA && in_row >= 0) ? A[wA * in_row + s + tx] : 0;
+    As[ty][tx] =
+        ((s + tx) < wA && y < hA && in_row >= 0) ? A[wA * in_row + s + tx] : 0;
     Bs[ty][tx] = ((s + ty) < hB && x < wB) ? B[wB * (s + ty) + x] : 0;
 
     // Synchronize to make sure the matrices are loaded
     __syncthreads();
 
-    if(in_row >= 0 && out_row >= 0){
-        // Multiply the two matrices together;
-        // each thread computes one element
-        // of the block sub-matrix
-    #pragma unroll
-        for (int k = 0; k < BLOCK_SIZE; ++k) {
-          Csub += As[ty][k] * Bs[k][tx];
-        }
+    if (in_row >= 0 && out_row >= 0) {
+      // Multiply the two matrices together;
+      // each thread computes one element
+      // of the block sub-matrix
+#pragma unroll
+      for (int k = 0; k < BLOCK_SIZE; ++k) {
+        Csub += As[ty][k] * Bs[k][tx];
+      }
     }
 
     // Synchronize to make sure that the preceding
@@ -134,11 +135,11 @@ __global__ void matmul(const float *A, const int wA, const int hA,
 
   // Write the block sub-matrix to device memory;
   // each thread writes one element
-    
-  if (out_row >= 0 && y < hA && x < wB){
+
+  if (out_row >= 0 && y < hA && x < wB) {
     C[wB * out_row + x] += Csub;
   }
-   // TODO: atomicAdd(&C[wB * out_row + x], Csub); // For conv transpose, it
+  // TODO: atomicAdd(&C[wB * out_row + x], Csub); // For conv transpose, it
   // might fail due to overlapping outputs
 }
 
@@ -177,13 +178,11 @@ __global__ void matmul2(const float *A, const int wA, const int hA,
   const int x = BLOCK_SIZE * bx + tx;
   const int y = BLOCK_SIZE * by + ty;
 
-  
-  const int out_row_ = y < nmap_size ?  neighbor_map[2 * y + 1]: -1;
+  const int out_row_ = y < nmap_size ? neighbor_map[2 * y + 1] : -1;
   const int in_row_ = y < nmap_size ? neighbor_map[2 * y] : -1;
   const int out_row = transpose ? in_row_ : out_row_;
   const int in_row = transpose ? out_row_ : in_row_;
-  
-  
+
   // Csub is used to store the element of the block sub-matrix
   // that is computed by the thread
   float Csub = 0;
@@ -210,14 +209,15 @@ __global__ void matmul2(const float *A, const int wA, const int hA,
     // Load the matrices from device memory
     // to shared memory; each thread loads
     // one element of each matrix
-    As[ty][tx] = ((s + tx) < wA && y < hA && out_row >= 0) ? A[wA * out_row + s + tx] : 0;
+    As[ty][tx] = ((s + tx) < wA && y < hA && out_row >= 0)
+                     ? A[wA * out_row + s + tx]
+                     : 0;
 
     // Transposed kernel
     BTs[ty][tx] = ((s + ty) < wB && x < hB) ? B[wB * x + s + ty] : 0;
 
     // Synchronize to make sure the matrices are loaded
     __syncthreads();
-    
 
     // Multiply the two matrices together;
     // each thread computes one element
@@ -226,9 +226,9 @@ __global__ void matmul2(const float *A, const int wA, const int hA,
     for (int k = 0; k < BLOCK_SIZE; ++k) {
       Csub += As[ty][k] * BTs[k][tx];
     }
-    
+
     Esub = 0;
-    
+
     // For Esub, reset to 0
 #pragma unroll
     for (int k = 0; k < BLOCK_SIZE; ++k) {
@@ -246,7 +246,6 @@ __global__ void matmul2(const float *A, const int wA, const int hA,
     if ((bx * BLOCK_SIZE + ty) < wD && (s + tx) < wA)
       atomicAdd(&E[wA * (bx * BLOCK_SIZE + ty) + (s + tx)], Esub);
   }
-    
 
   // Write the block sub-matrix to device memory;
   // each thread writes one element
@@ -254,31 +253,27 @@ __global__ void matmul2(const float *A, const int wA, const int hA,
     atomicAdd(&C[hB * in_row + x], Csub);
 }
 
-void ConvolutionForwardKernelGPU(
-    const float *d_in_feat, int in_nchannel, float *d_out_feat,
-    int out_nchannel, const float *d_kernel,
-    const int* neighbor_map,
-    const int* neighbor_offset,
-    const int in_npoints,
-    const int out_npoints,
-    const int n_neighbors,
-    const bool transpose,
-    cublasHandle_t cuhandle, cudaStream_t stream) {
+void ConvolutionForwardKernelGPU(const float *d_in_feat, int in_nchannel,
+                                 float *d_out_feat, int out_nchannel,
+                                 const float *d_kernel, const int *neighbor_map,
+                                 const int *neighbor_offset,
+                                 const int in_npoints, const int out_npoints,
+                                 const int n_neighbors, const bool transpose,
+                                 cublasHandle_t cuhandle, cudaStream_t stream) {
   // For the in out buffer, use the pre allocated GPU memory space as thrust
   // resize gives segfault. Also initializing it with torch allows us to
   // allocate memory faster and efficiently.
-  
-  
-  int kernel_volume=n_neighbors, n_active_in_volume, num_kernels, 
-    neighbor_step=min(out_npoints, in_npoints);
+
+  int kernel_volume = n_neighbors, n_active_in_volume, num_kernels,
+      neighbor_step = min(out_npoints, in_npoints);
   int cur_offset = 0;
-  
-  //printf("%d %d\n", in_buffer_size, in_npoints);
-  
+
+  // printf("%d %d\n", in_buffer_size, in_npoints);
+
   // Iterate through each spatial kernel and get indices for in_map and out_map
-  
+
   for (int k = 0; k < kernel_volume; k++) {
-    
+
     n_active_in_volume = in_npoints;
     if (n_active_in_volume / SHARED_BLOCK_SIZE < 65536) {
       dim3 threads(SHARED_BLOCK_SIZE, SHARED_BLOCK_SIZE);
@@ -291,29 +286,23 @@ void ConvolutionForwardKernelGPU(
     } else {
       printf("call2\n");
       num_kernels = out_nchannel * n_active_in_volume;
-      inplace_convolution
-          <<<GET_BLOCKS(num_kernels), CUDA_NUM_THREADS, 0, stream>>>(
-              num_kernels, d_in_feat, in_nchannel, d_out_feat, out_nchannel,
-              &d_kernel[k * in_nchannel * out_nchannel], neighbor_map + cur_offset);
+      inplace_convolution<<<GET_BLOCKS(num_kernels), CUDA_NUM_THREADS, 0,
+                            stream>>>(
+          num_kernels, d_in_feat, in_nchannel, d_out_feat, out_nchannel,
+          &d_kernel[k * in_nchannel * out_nchannel], neighbor_map + cur_offset);
     }
     cur_offset += 2 * neighbor_offset[k];
-    
   }
-  
 }
 
 void ConvolutionBackwardKernelGPU(
     const float *d_in_feat, float *d_grad_in_feat, int in_nchannel,
     const float *d_grad_out_feat, int out_nchannel, float *d_kernel,
-    float *d_grad_kernel, const int * neighbor_map,
-    const int * neighbor_offset,
-    const int in_npoints,
-    const int out_npoints,
-    const int n_neighbors,
-    const bool transpose,
-    cublasHandle_t cuhandle, cudaStream_t stream) {
-  int kernel_volume=n_neighbors, n_active_in_volume;
-  int neighbor_step=min(in_npoints, out_npoints);
+    float *d_grad_kernel, const int *neighbor_map, const int *neighbor_offset,
+    const int in_npoints, const int out_npoints, const int n_neighbors,
+    const bool transpose, cublasHandle_t cuhandle, cudaStream_t stream) {
+  int kernel_volume = n_neighbors, n_active_in_volume;
+  int neighbor_step = min(in_npoints, out_npoints);
   int cur_offset = 0;
   // Assume that old kernel will never be used.
   for (int k = 0; k < kernel_volume; k++) {
@@ -322,7 +311,6 @@ void ConvolutionBackwardKernelGPU(
     if (n_active_in_volume == 0)
       continue;
 
-    
     dim3 threads(SHARED_BLOCK_SIZE, SHARED_BLOCK_SIZE);
     dim3 grid((in_nchannel + threads.x - 1) / threads.x,
               (n_active_in_volume + threads.y - 1) / threads.y);
@@ -335,26 +323,23 @@ void ConvolutionBackwardKernelGPU(
         d_grad_in_feat,                                 // C
         &d_grad_kernel[k * in_nchannel * out_nchannel], // E
         neighbor_map + cur_offset, neighbor_offset[k], transpose);
-    
+
     cur_offset += 2 * neighbor_offset[k];
   }
-
-   
 }
 
-void scatter_launch(const int n_in, const int n_out, const int c, 
-                               const float *in_feat, float *out_feat, const int *kmap,
-                               const bool transpose){
-    scatter_kernel<<<ceil((double)(n_in * c) / 256), 256>>>(n_in, n_out, c, in_feat, 
-                                                            out_feat, kmap, transpose);
+void scatter_launch(const int n_in, const int n_out, const int c,
+                    const float *in_feat, float *out_feat, const int *kmap,
+                    const bool transpose) {
+  scatter_kernel<<<ceil((double)(n_in * c) / 256), 256>>>(
+      n_in, n_out, c, in_feat, out_feat, kmap, transpose);
 }
 
-
-void gather_launch(const int n_k, const int n_in, const int c, 
-                               const float *in_feat, float *out_feat, const int *kmap,
-                               const bool transpose){
-    gather_kernel<<<ceil((double)(n_k * c) / 256), 256>>>(n_k, n_in, c, in_feat, 
-                                                          out_feat, kmap, transpose);
+void gather_launch(const int n_k, const int n_in, const int c,
+                   const float *in_feat, float *out_feat, const int *kmap,
+                   const bool transpose) {
+  gather_kernel<<<ceil((double)(n_k * c) / 256), 256>>>(
+      n_k, n_in, c, in_feat, out_feat, kmap, transpose);
 }
 
 #endif

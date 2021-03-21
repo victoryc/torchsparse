@@ -19,8 +19,6 @@ at::Tensor cpu_convert_map_forward(
     const at::Tensor idx_batch,
     const at::Tensor idx_point)
 {
-  //return group_point_forward_gpu(points, indices);
-
   int N = nmap.size(1);
   int k = nmap.size(0);
   int N_nonzero = idx_point.size(0);

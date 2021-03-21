@@ -1,10 +1,12 @@
 import math
+from typing import Tuple, Union
 
+import numpy as np
 import torch
 from torch import nn
-from torchsparse.sparse_tensor import *
 
-from ..functional import *
+from ... import SparseTensor
+from .. import functional as F
 
 __all__ = [
     'Conv3d', 'ToBEVConvolution', 'ToBEVReduction', 'ToDenseBEVConvolution'
@@ -15,67 +17,66 @@ class Conv3d(nn.Module):
     def __init__(self,
                  in_channels: int,
                  out_channels: int,
-                 kernel_size: int = 3,
+                 kernel_size: Union[int, Tuple[int, int, int]],
                  stride: int = 1,
                  dilation: int = 1,
                  bias: bool = False,
                  transpose: bool = False) -> None:
         super().__init__()
-        self.in_channels = inc = in_channels
-        self.out_channels = outc = out_channels
+        self.in_channels = in_channels
+        self.out_channels = out_channels
         self.kernel_size = kernel_size
         self.stride = stride
         self.dilation = dilation
-        if not isinstance(kernel_size, (list, tuple)):
-            self.kernel_volume = self.kernel_size ** 3
-            self.kernel = nn.Parameter(
-                torch.zeros(self.kernel_volume, inc,
-                            outc)) if self.kernel_size > 1 else nn.Parameter(
-                                torch.zeros(inc, outc))
-        else:
-            if len(self.kernel_size) == 3:
-                self.kernel_volume = self.kernel_size[0] * self.kernel_size[
-                    1] * self.kernel_size[2]
-                self.kernel = nn.Parameter(
-                    torch.zeros(self.kernel_volume, inc, outc))
-            else:
-                raise ValueError(
-                    "kernel_size must be either an integer of a 3 dimensional tuple"
-                )
+        self.transpose = transpose
 
-        self.bias = None if not bias else nn.Parameter(torch.zeros(outc))
-        self.t = transpose
+        if isinstance(kernel_size, int):
+            kernel_size = [kernel_size] * 3
+        assert isinstance(kernel_size, (list, tuple)) and len(kernel_size) == 3, \
+            'kernel_size must be either an integer or a triple of integers'
+        self.kernel_volume = int(np.prod(kernel_size))
+
+        if self.kernel_volume > 1:
+            self.kernel = nn.Parameter(
+                torch.zeros(self.kernel_volume, self.in_channels,
+                            self.out_channels))
+        else:
+            self.kernel = nn.Parameter(
+                torch.zeros(self.in_channels, self.out_channels))
+
+        if bias:
+            self.bias = nn.Parameter(torch.zeros(self.out_channels))
+        else:
+            self.bias = None
+
         self.reset_parameters()
 
-        if kernel_size == 1:
-            assert not transpose
-
-    def __repr__(self):
-        if not self.t:
-            return 'Conv3d(in_channels=%d, out_channels=%d, kernel_size=%d, stride=%d, dilation=%d)' % (
+    def __repr__(self) -> str:
+        if not self.transpose:
+            return 'Conv3d(in_channels=%d, out_channels=%d, kernel_size=%s, stride=%d, dilation=%d)' % (
                 self.in_channels, self.out_channels, self.kernel_size,
                 self.stride, self.dilation)
         else:
-            return 'Conv3d(in_channels=%d, out_channels=%d, kernel_size=%d, stride=%d, dilation=%d)' % (
+            return 'ConvTranspose3d(in_channels=%d, out_channels=%d, kernel_size=%s, stride=%d, dilation=%d)' % (
                 self.in_channels, self.out_channels, self.kernel_size,
                 self.stride, self.dilation)
 
-    def reset_parameters(self):
+    def reset_parameters(self) -> None:
         std = 1. / math.sqrt(
-            self.out_channels if self.t else self.in_channels *
-            (self.kernel_volume))
+            (self.out_channels if self.transpose else self.in_channels) *
+            self.kernel_volume)
         self.kernel.data.uniform_(-std, std)
         if self.bias is not None:
             self.bias.data.uniform_(-std, std)
 
-    def forward(self, inputs):
-        return conv3d(inputs,
-                      self.kernel,
-                      kernel_size=self.kernel_size,
-                      bias=self.bias,
-                      stride=self.stride,
-                      dilation=self.dilation,
-                      transpose=self.t)
+    def forward(self, inputs: SparseTensor) -> SparseTensor:
+        return F.conv3d(inputs,
+                        self.kernel,
+                        self.kernel_size,
+                        bias=self.bias,
+                        stride=self.stride,
+                        dilation=self.dilation,
+                        transpose=self.transpose)
 
 
 class ToBEVReduction(nn.Module):

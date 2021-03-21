@@ -9,8 +9,6 @@
 #include <google/dense_hash_map>
 
 
-
-
 class HashTableCPU {
 
 private:

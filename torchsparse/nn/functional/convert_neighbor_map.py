@@ -1,27 +1,21 @@
 import torch
-import torchsparse_backend
-from torch.autograd import Function
+import torchsparse_engine
 
 
-class ConvertNeighborMap(Function):
-    @staticmethod
-    def forward(ctx, neighbor_map):
-        idx_batch, idx_point = torch.where(neighbor_map != -1)
-        if 'cuda' in str(neighbor_map.device):
-            map_converted = torchsparse_backend.convert_map_forward(
-                neighbor_map.int(), idx_batch.int(), idx_point.int())
-        elif 'cpu' in str(neighbor_map.device):
-            map_converted = torchsparse_backend.cpu_convert_map_forward(
-                neighbor_map.int(), idx_batch.int(), idx_point.int())
-        else:
-            device = neighbor_map.device
-            map_converted = torchsparse_backend.cpu_convert_map_forward(
-                neighbor_map.int().cpu(),
-                idx_batch.int().cpu(),
-                idx_point.int().cpu())
-            map_converted = map_converted.to(device)
-        nmap_offset = torch.sum(neighbor_map != -1, 1)
-        return map_converted.int().contiguous(), nmap_offset.int().contiguous()
-
-
-convert_neighbor_map_gpu = ConvertNeighborMap.apply
+def convert_neighbor_map(neighbor_map):
+    batch_indices, point_indices = torch.where(neighbor_map != -1)
+    if neighbor_map.device.type == 'cuda':
+        map_converted = torchsparse_engine.convert_map_forward(
+            neighbor_map.int(), batch_indices.int(), point_indices.int())
+    elif neighbor_map.device.type == 'cpu':
+        map_converted = torchsparse_engine.cpu_convert_map_forward(
+            neighbor_map.int(), batch_indices.int(), point_indices.int())
+    else:
+        device = neighbor_map.device
+        map_converted = torchsparse_engine.cpu_convert_map_forward(
+            neighbor_map.int().cpu(),
+            batch_indices.int().cpu(),
+            point_indices.int().cpu())
+        map_converted = map_converted.to(device)
+    nmap_offset = torch.sum(neighbor_map != -1, 1)
+    return map_converted.int().contiguous(), nmap_offset.int().contiguous()

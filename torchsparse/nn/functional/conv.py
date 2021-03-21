@@ -1,41 +1,36 @@
-import copy
+import itertools
+from typing import Optional, Tuple, Union
 
+import numpy as np
 import torch
 import torchsparse_backend
 from torch.autograd import Function
-from torchsparse import *
-from torchsparse.nn.functional.convert_neighbor_map import *
-from torchsparse.nn.functional.downsample import *
-from torchsparse.nn.functional.hash import *
-from torchsparse.nn.functional.query import *
-from torchsparse.utils.kernel_region import *
+
+from ... import SparseTensor
+from .. import functional as F
 
 __all__ = ['conv3d']
 
 
-class SpConvolution(Function):
+class SparseConv(Function):
     @staticmethod
     def forward(ctx,
-                features,
+                feats,
                 kernel,
                 neighbor_map,
                 neighbor_offset,
                 sizes,
                 transpose=False):
-        features = features.contiguous()
+        feats = feats.contiguous()
         kernel = kernel.contiguous()
         if not transpose:
-            out = torch.zeros(sizes[1],
-                              kernel.size(-1),
-                              device=features.device)
+            out = torch.zeros(sizes[1], kernel.size(-1), device=feats.device)
         else:
             # tbd: ensure the original, upsampled size to be the same.
-            out = torch.zeros(sizes[0],
-                              kernel.size(-1),
-                              device=features.device)
+            out = torch.zeros(sizes[0], kernel.size(-1), device=feats.device)
 
-        if 'cuda' in str(features.device):
-            torchsparse_backend.sparseconv_forward(features, out, kernel,
+        if feats.device.type == 'cuda':
+            torchsparse_backend.sparseconv_forward(feats, out, kernel,
                                                    neighbor_map,
                                                    neighbor_offset, transpose)
         else:
@@ -50,13 +45,13 @@ class SpConvolution(Function):
                 if transpose:
                     in_map, out_map = out_map, in_map
                 # gather
-                cur_feat = features[in_map]
+                cur_feat = feats[in_map]
                 # gemm
                 cur_feat = torch.mm(cur_feat, kernel[kernel_idx])
                 # scatter
                 out[out_map] += cur_feat
 
-        ctx.for_backwards = (features, kernel, neighbor_map, neighbor_offset,
+        ctx.for_backwards = (feats, kernel, neighbor_map, neighbor_offset,
                              transpose)
         return out
 
@@ -68,7 +63,7 @@ class SpConvolution(Function):
         grad_features = torch.zeros(N_in, c_in, device=features.device)
         grad_kernel = torch.zeros(K, c_in, c_out, device=kernel.device)
 
-        if 'cuda' in str(features.device):
+        if features.device.type == 'cuda':
             torchsparse_backend.sparseconv_backward(features, grad_features,
                                                     grad_out.contiguous(),
                                                     kernel, grad_kernel,
@@ -79,112 +74,91 @@ class SpConvolution(Function):
         return grad_features, grad_kernel, None, None, None, None
 
 
-sparseconv_op = SpConvolution.apply
+sparse_conv = SparseConv.apply
 
 
-def conv3d(inputs,
-           kernel,
-           kernel_size,
-           bias=None,
-           stride=1,
-           dilation=1,
-           transpose=False):
-    features = inputs.F
-    coords = inputs.C
-    cur_stride = inputs.s
+def conv3d(inputs: SparseTensor,
+           kernel: torch.Tensor,
+           kernel_size: Union[int, Tuple[int, int, int]],
+           bias: Optional[torch.Tensor] = None,
+           stride: int = 1,
+           dilation: int = 1,
+           transpose: bool = False) -> SparseTensor:
+    coords, feats = inputs.C, inputs.F
 
-    if kernel_size == 1 and stride == 1 and dilation == 1:
-        output_features = features.matmul(kernel)
+    if isinstance(kernel_size, int):
+        kernel_size = [kernel_size] * 3
+    assert isinstance(kernel_size, (list, tuple)) and len(kernel_size) == 3, \
+        'kernel_size must be either an integer or a triple of integers'
+    kernel_volume = int(np.prod(kernel_size))
+
+    if kernel_volume == 1 and stride == 1 and dilation == 1:
+        feats = feats.matmul(kernel)
         if bias is not None:
-            output_features += bias
-        output_tensor = SparseTensor(output_features, coords, cur_stride)
-        output_tensor.coord_maps = inputs.coord_maps
-        output_tensor.kernel_maps = inputs.kernel_maps
-        output_tensor.check()
-    elif not transpose:
+            feats += bias
+        outputs = SparseTensor(coords=coords,
+                               feats=feats,
+                               stride=inputs.stride)
+        outputs.coord_maps = inputs.coord_maps
+        outputs.coord_maps[outputs.stride] = outputs.coords
+        outputs.kernel_maps = inputs.kernel_maps
+        return outputs
+
+    if not transpose:
         kernel_map = inputs.kernel_maps.get(
-            'k%s_os%d_s%d_d%d' % (kernel_size, cur_stride, stride, dilation),
-            None)
+            (inputs.stride, kernel_size, stride, dilation))
 
-        if stride > 1:
-            # do downsample
-            kRegion = KernelRegion(kernel_size=kernel_size,
-                                   tensor_stride=cur_stride)
-            kOffset = kRegion.get_kernel_offset().to(features.device)
-            new_coords = spdownsample(coords, stride * cur_stride)
-            hash_query = sphash(new_coords, kOffset)
-            hash_target = sphash(coords)
-            idx_query = sphashquery(hash_query, hash_target)
-            idx_query = list(convert_neighbor_map_gpu(idx_query))
-            idx_query[1] = idx_query[1].to('cpu')
-            sizes = (features.shape[0], new_coords.shape[0])
-            output_features = sparseconv_op(features, kernel, idx_query[0],
-                                            idx_query[1], sizes, transpose)
-            if bias is not None:
-                output_features += bias
-            output_tensor = SparseTensor(output_features, new_coords,
-                                         cur_stride * stride)
-            output_tensor.coord_maps = copy.deepcopy(inputs.coord_maps)
-            output_tensor.check()
-            output_tensor.kernel_maps = copy.deepcopy(inputs.kernel_maps)
-            output_tensor.kernel_maps['k%s_os%d_s%d_d%d' %
-                                      (kernel_size, cur_stride, stride,
-                                       dilation)] = idx_query + [sizes]
-
-        else:
-            if kernel_map is None:
-                kRegion = KernelRegion(kernel_size=kernel_size,
-                                       tensor_stride=cur_stride)
-                try:
-                    kOffset = kRegion.get_kernel_offset().to(features.device)
-                except:
-                    raise
-                hash_query = sphash(coords, kOffset)
-                hash_target = sphash(coords)
-                idx_query = sphashquery(hash_query, hash_target)
-                idx_query = list(convert_neighbor_map_gpu(idx_query))
-                idx_query[1] = idx_query[1].to('cpu')
-                sizes = (features.shape[0], features.shape[0])
-                output_features = sparseconv_op(features, kernel, idx_query[0],
-                                                idx_query[1], sizes, transpose)
-                if bias is not None:
-                    output_features += bias
-                output_tensor = SparseTensor(output_features, coords,
-                                             cur_stride)
-                output_tensor.coord_maps = inputs.coord_maps
-                output_tensor.check()
-                output_tensor.kernel_maps = copy.deepcopy(inputs.kernel_maps)
-                output_tensor.kernel_maps['k%s_os%d_s%d_d%d' %
-                                          (kernel_size, cur_stride, stride,
-                                           dilation)] = idx_query + [sizes]
+        if kernel_map is None:
+            offsets = [
+                np.arange(-kernel_size[k] // 2 + 1, kernel_size[k] // 2 + 1) *
+                stride * dilation for k in range(3)
+            ]
+            # to be compatible with minkowskiengine
+            if kernel_volume % 2 == 1:
+                offsets = itertools.product(offsets[2], offsets[1], offsets[0])
             else:
-                output_features = sparseconv_op(features, kernel,
-                                                kernel_map[0], kernel_map[1],
-                                                kernel_map[2], transpose)
-                if bias is not None:
-                    output_features += bias
-                output_tensor = SparseTensor(output_features, coords,
-                                             cur_stride)
-                output_tensor.coord_maps = inputs.coord_maps
-                output_tensor.check()
-                output_tensor.kernel_maps = inputs.kernel_maps
+                offsets = itertools.product(offsets[0], offsets[1], offsets[2])
+            offsets = torch.tensor(list(offsets),
+                                   dtype=torch.int,
+                                   device=feats.device)
 
+            references = F.sphash(coords)
+            if stride > 1:
+                coords = F.spdownsample(coords, stride * inputs.stride)
+            queries = F.sphash(coords, offsets)
+
+            idx_query = F.sphashquery(queries, references)
+            idx_query = list(F.convert_neighbor_map(idx_query))
+            idx_query[1] = idx_query[1].cpu()
+            kernel_map = idx_query + [(feats.shape[0], coords.shape[0])]
+
+        feats = sparse_conv(feats, kernel, kernel_map[0], kernel_map[1],
+                            kernel_map[2], transpose)
+        if bias is not None:
+            feats += bias
+
+        outputs = SparseTensor(coords=coords,
+                               feats=feats,
+                               stride=inputs.stride * stride)
+        outputs.coord_maps = inputs.coord_maps
+        outputs.coord_maps[outputs.stride] = outputs.coords
+        outputs.kernel_maps = inputs.kernel_maps
+        outputs.kernel_maps[(inputs.stride, kernel_size, stride,
+                             dilation)] = kernel_map
     else:
         # do upsample
-        original_stride = int(cur_stride / stride)
+        original_stride = int(inputs.stride / stride)
         kernel_map = inputs.kernel_maps.get(
-            'k%s_os%d_s%d_d%d' %
-            (kernel_size, original_stride, stride, dilation), None)
-        output_features = sparseconv_op(features, kernel, kernel_map[0],
-                                        kernel_map[1], kernel_map[2],
-                                        transpose)
+            (original_stride, kernel_size, stride, dilation))
+        feats = sparse_conv(feats, kernel, kernel_map[0], kernel_map[1],
+                            kernel_map[2], transpose)
         if bias is not None:
-            output_features += bias
-        output_tensor = SparseTensor(output_features,
-                                     inputs.coord_maps[original_stride],
-                                     original_stride)
-        output_tensor.coord_maps = inputs.coord_maps
-        output_tensor.check()
-        output_tensor.kernel_maps = inputs.kernel_maps
+            feats += bias
+        outputs = SparseTensor(coords=inputs.coord_maps[original_stride],
+                               feats=feats,
+                               stride=original_stride)
+        outputs.coord_maps = inputs.coord_maps
+        outputs.coord_maps[outputs.stride] = outputs.coords
+        outputs.kernel_maps = inputs.kernel_maps
 
-    return output_tensor
+    return outputs

@@ -1,5 +1,6 @@
 from torch import nn
-from torchsparse.sparse_tensor import *
+
+from ... import SparseTensor
 
 __all__ = ['BatchNorm', 'LayerNorm']
 

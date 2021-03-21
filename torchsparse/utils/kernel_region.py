@@ -4,65 +4,69 @@ import torch
 __all__ = ['KernelRegion']
 
 
+def get_kernel_offsets(kernel_size,
+                       stride: int = 1,
+                       dilation: int = 1) -> torch.Tensor:
+    if isinstance(kernel_size, int):
+        kernel_size = [kernel_size] * 3
+
+    offsets = [
+        np.arange(-kernel_size[k] // 2 + 1, kernel_size[k] // 2 + 1) * stride *
+        dilation for k in range(3)
+    ]
+
+    # to be compatible with minkowskiengine
+    if np.prod(kernel_size) % 2 == 1:
+        offsets = [[x, y, z] for z in offsets[2] for y in offsets[1]
+                   for x in offsets[0]]
+    else:
+        offsets = [[x, y, z] for x in offsets[0] for y in offsets[1]
+                   for z in offsets[2]]
+
+    offsets = torch.tensor(offsets, dtype=torch.int)
+    return offsets
+
+
 class KernelRegion:
     def __init__(self,
                  kernel_size: int = 3,
-                 tensor_stride: int = 1,
-                 dilation: int = 1,
-                 dim=[0, 1, 2]) -> None:
+                 stride: int = 1,
+                 dilation: int = 1) -> None:
         self.kernel_size = kernel_size
-        self.tensor_stride = tensor_stride
+        self.stride = stride
         self.dilation = dilation
 
-        if not isinstance(kernel_size, (list, tuple)):
-            if kernel_size % 2 == 0:
-                # even
-                region_type = 0
-            else:
-                # odd
-                region_type = 1
+        if isinstance(kernel_size, int):
+            kernel_size = [kernel_size] * 3
 
-            self.region_type = region_type
-
-            single_offset = (
-                np.arange(-kernel_size // 2 + 1, kernel_size // 2 + 1) *
-                tensor_stride * dilation).tolist()
-
-            x_offset = single_offset if 0 in dim else [0]
-            y_offset = single_offset if 1 in dim else [0]
-            z_offset = single_offset if 2 in dim else [0]
-
-            if self.region_type == 1:
-                kernel_offset = [[x, y, z] for z in z_offset for y in y_offset
-                                 for x in x_offset]
-            else:
-                kernel_offset = [[x, y, z] for x in x_offset for y in y_offset
-                                 for z in z_offset]
-            kernel_offset = np.array(kernel_offset)
-            self.kernel_offset = torch.from_numpy(kernel_offset).int()
+        kernel_volume = np.prod(kernel_size)
+        if kernel_volume % 2 == 0:
+            # even
+            region_type = 0
         else:
-            if dim == [0, 1, 2] and len(kernel_size) == 3:
-                kernel_x_size = kernel_size[0]
-                kernel_y_size = kernel_size[1]
-                kernel_z_size = kernel_size[2]
+            # odd
+            region_type = 1
 
-                x_offset = (np.arange(-kernel_x_size // 2 + 1,
-                                      kernel_x_size // 2 + 1) * tensor_stride *
-                            dilation).tolist()
-                y_offset = (np.arange(-kernel_y_size // 2 + 1,
-                                      kernel_y_size // 2 + 1) * tensor_stride *
-                            dilation).tolist()
-                z_offset = (np.arange(-kernel_z_size // 2 + 1,
-                                      kernel_z_size // 2 + 1) * tensor_stride *
-                            dilation).tolist()
+        self.region_type = region_type
 
-                kernel_offset = [[x, y, z] for x in x_offset for y in y_offset
-                                 for z in z_offset]
+        x_offset = (
+            np.arange(-kernel_size[0] // 2 + 1, kernel_size[0] // 2 + 1) *
+            stride * dilation).tolist()
+        y_offset = (
+            np.arange(-kernel_size[1] // 2 + 1, kernel_size[1] // 2 + 1) *
+            stride * dilation).tolist()
+        z_offset = (
+            np.arange(-kernel_size[2] // 2 + 1, kernel_size[2] // 2 + 1) *
+            stride * dilation).tolist()
 
-                kernel_offset = np.array(kernel_offset)
-                self.kernel_offset = torch.from_numpy(kernel_offset).int()
-            else:
-                raise NotImplementedError
+        if self.region_type == 1:
+            kernel_offset = [[x, y, z] for z in z_offset for y in y_offset
+                             for x in x_offset]
+        else:
+            kernel_offset = [[x, y, z] for x in x_offset for y in y_offset
+                             for z in z_offset]
+        kernel_offset = np.array(kernel_offset)
+        self.kernel_offset = torch.from_numpy(kernel_offset).int()
 
     def get_kernel_offset(self):
         return self.kernel_offset

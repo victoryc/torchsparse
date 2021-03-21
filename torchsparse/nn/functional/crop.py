@@ -1,4 +1,4 @@
-from torchsparse.sparse_tensor import SparseTensor
+from ... import SparseTensor
 
 __all__ = ['spcrop']
 

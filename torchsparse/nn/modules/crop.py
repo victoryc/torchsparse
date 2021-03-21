@@ -1,6 +1,7 @@
 import torch
 from torch import nn
-from torchsparse.nn.functional import spcrop
+
+from .. import functional as F
 
 __all__ = ['SparseCrop']
 
@@ -12,4 +13,4 @@ class SparseCrop(nn.Module):
         self.loc_max = torch.cuda.IntTensor([list(loc_max)])
 
     def forward(self, inputs):
-        return spcrop(inputs, self.loc_min, self.loc_max)
+        return F.spcrop(inputs, self.loc_min, self.loc_max)

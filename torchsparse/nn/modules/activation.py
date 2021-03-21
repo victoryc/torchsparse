@@ -1,9 +1,8 @@
 import functools
 
 from torch import nn
-from torchsparse.sparse_tensor import *
 
-from ..functional import *
+from .. import functional as F
 
 __all__ = ['ReLU', 'LeakyReLU']
 
@@ -11,7 +10,7 @@ __all__ = ['ReLU', 'LeakyReLU']
 class Activation(nn.Module):
     def __init__(self, inplace: bool = True) -> None:
         super().__init__()
-        self.activation = spact
+        self.activation = F.spact
         self.inplace = inplace
 
     def forward(self, inputs):
@@ -21,7 +20,7 @@ class Activation(nn.Module):
 class ReLU(Activation):
     def __init__(self, inplace: bool = True) -> None:
         super().__init__()
-        self.activation = functools.partial(sprelu, inplace=inplace)
+        self.activation = functools.partial(F.sprelu, inplace=inplace)
 
     def __repr__(self):
         if self.inplace:
@@ -35,7 +34,7 @@ class LeakyReLU(Activation):
                  negative_slope: float = 0.1,
                  inplace: bool = True) -> None:
         super().__init__()
-        self.activation = functools.partial(spleaky_relu,
+        self.activation = functools.partial(F.spleaky_relu,
                                             negative_slope=negative_slope,
                                             inplace=inplace)
         self.negative_slope = negative_slope

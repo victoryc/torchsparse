@@ -37,14 +37,3 @@ at::Tensor devoxelize_backward(
   devoxelize_grad_wrapper(N, n, c, indices.data_ptr<int>(), weight.data_ptr<float>(), top_grad.data_ptr<float>(), bottom_grad.data_ptr<float>());
   return bottom_grad;
 }
-
-
-/*
-PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-  m.def("devoxelize_forward", &devoxelize_forward, "Devoxelization forward (CUDA)");
-  m.def("devoxelize_backward", &devoxelize_backward, "Devoxelization backward (CUDA)");
-}
-*/
-
-
-
