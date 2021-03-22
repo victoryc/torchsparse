@@ -15,8 +15,8 @@ __all__ = ['conv3d']
 class SparseConv(Function):
     @staticmethod
     def forward(ctx,
-                feats,
-                kernel,
+                feats: torch.Tensor,
+                kernel: torch.Tensor,
                 nbmaps: torch.Tensor,
                 nbsizes: torch.Tensor,
                 sizes,
@@ -135,7 +135,6 @@ def conv3d(inputs: SparseTensor,
             nbmaps[:, 0] = results.view(-1)[nbmaps[:, 0] * results.size(1) +
                                             nbmaps[:, 1]]
 
-            nbsizes = nbsizes.cpu()
             kernel_map = [nbmaps, nbsizes, (feats.shape[0], coords.shape[0])]
 
         feats = sparse_conv(feats, kernel, kernel_map[0], kernel_map[1],
