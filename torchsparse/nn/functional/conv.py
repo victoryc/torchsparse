@@ -33,7 +33,7 @@ class SparseConv(Function):
 
         if feats.device.type == 'cuda':
             torchsparse_backend.sparseconv_forward(feats, out, kernel, nbmaps,
-                                                   nbsizes, transpose)
+                                                   nbsizes.cpu(), transpose)
         else:
             # use the native pytorch XLA APIs for the TPU.
             cur_st = 0
