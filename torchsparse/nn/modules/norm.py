@@ -1,6 +1,9 @@
+from typing import List, Union
+
+import torch
 from torch import nn
 
-from ... import SparseTensor
+from ...tensor import SparseTensor
 
 __all__ = ['BatchNorm', 'LayerNorm']
 
@@ -14,19 +17,18 @@ class BatchNorm(nn.BatchNorm1d):
         super().__init__(num_features=num_features, eps=eps, momentum=momentum)
 
     def forward(self, inputs):
-        feats = inputs.F
-        coords = inputs.C
-        stride = inputs.s
+        coords, feats, stride = inputs.coords, inputs.feats, inputs.stride
         feats = super().forward(feats)
         outputs = SparseTensor(coords=coords, feats=feats, stride=stride)
-        outputs.coord_maps = inputs.coord_maps
-        outputs.kernel_maps = inputs.kernel_maps
+        outputs.cmaps = inputs.cmaps
+        outputs.kmaps = inputs.kmaps
         return outputs
 
 
 class LayerNorm(nn.LayerNorm):
     def __init__(self,
-                 normalized_shape,
+                 normalized_shape: Union[int, List[int], torch.Size],
+                 *,
                  eps: float = 1e-5,
                  elementwise_affine: bool = True) -> None:
         super().__init__(normalized_shape,
@@ -34,11 +36,9 @@ class LayerNorm(nn.LayerNorm):
                          elementwise_affine=elementwise_affine)
 
     def forward(self, inputs):
-        feats = inputs.F
-        coords = inputs.C
-        stride = inputs.s
+        coords, feats, stride = inputs.coords, inputs.feats, inputs.stride
         feats = super().forward(feats)
         outputs = SparseTensor(coords=coords, feats=feats, stride=stride)
-        outputs.coord_maps = inputs.coord_maps
-        outputs.kernel_maps = inputs.kernel_maps
+        outputs.cmaps = inputs.cmaps
+        outputs.kmaps = inputs.kmaps
         return outputs

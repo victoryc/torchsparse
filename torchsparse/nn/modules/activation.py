@@ -1,46 +1,33 @@
-import functools
-
 from torch import nn
 
-from .. import functional as F
+from ...tensor import SparseTensor
 
 __all__ = ['ReLU', 'LeakyReLU']
 
 
-class Activation(nn.Module):
+class ReLU(nn.ReLU):
     def __init__(self, inplace: bool = True) -> None:
-        super().__init__()
-        self.activation = F.spact
-        self.inplace = inplace
+        super().__init__(inplace=inplace)
 
     def forward(self, inputs):
-        return self.activation(inputs)
+        coords, feats, stride = inputs.coords, inputs.feats, inputs.stride
+        feats = super().forward(feats)
+        outputs = SparseTensor(coords=coords, feats=feats, stride=stride)
+        outputs.cmaps = inputs.cmaps
+        outputs.kmaps = inputs.kmaps
+        return outputs
 
 
-class ReLU(Activation):
-    def __init__(self, inplace: bool = True) -> None:
-        super().__init__()
-        self.activation = functools.partial(F.sprelu, inplace=inplace)
-
-    def __repr__(self):
-        if self.inplace:
-            return 'ReLU(inplace=True)'
-        else:
-            return 'ReLU(inplace=False)'
-
-
-class LeakyReLU(Activation):
+class LeakyReLU(nn.LeakyReLU):
     def __init__(self,
                  negative_slope: float = 0.1,
                  inplace: bool = True) -> None:
-        super().__init__()
-        self.activation = functools.partial(F.spleaky_relu,
-                                            negative_slope=negative_slope,
-                                            inplace=inplace)
-        self.negative_slope = negative_slope
+        super().__init__(negative_slope=negative_slope, inplace=inplace)
 
-    def __repr__(self):
-        if self.inplace:
-            return 'LeakyReLU(negative_slope=%f, inplace=True)' % self.negative_slope
-        else:
-            return 'LeakyReLU(negative_slope=%f, inplace=False)' % self.negative_slope
+    def forward(self, inputs):
+        coords, feats, stride = inputs.coords, inputs.feats, inputs.stride
+        feats = super().forward(feats)
+        outputs = SparseTensor(coords=coords, feats=feats, stride=stride)
+        outputs.cmaps = inputs.cmaps
+        outputs.kmaps = inputs.kmaps
+        return outputs

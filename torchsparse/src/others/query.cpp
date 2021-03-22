@@ -6,7 +6,7 @@
 #include "query_gpu.h"
 
 
-std::vector<at::Tensor> hash_query_cuda(
+at::Tensor hash_query_cuda(
     const at::Tensor hash_query,
     const at::Tensor hash_target,
     const at::Tensor idx_target
@@ -31,5 +31,5 @@ std::vector<at::Tensor> hash_query_cuda(
   at::Tensor out = torch::zeros({n1}, at::device(hash_query.device()).dtype(at::ScalarType::Long));
   
   in_hash_table.lookup_vals((unsigned long long int*)(hash_query.data_ptr<long>()), (unsigned long long int*)(key.data_ptr<long>()), (unsigned long long int*)(val.data_ptr<long>()), (unsigned long long int*)(out.data_ptr<long>()), n1);
-  return {out, key_buf, val_buf, key};
+  return out;
 }

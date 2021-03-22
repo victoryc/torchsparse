@@ -4,12 +4,12 @@
 #include <vector>
 
 
-at::Tensor cpu_insertion_forward(
+at::Tensor voxelize_forward_cpu(
     const at::Tensor inputs,
     const at::Tensor idx,
     const at::Tensor counts
 );
-at::Tensor cpu_insertion_backward(
+at::Tensor voxelize_backward_cpu(
     const at::Tensor top_grad,
     const at::Tensor idx,
     const at::Tensor counts,

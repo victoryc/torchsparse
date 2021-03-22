@@ -3,7 +3,7 @@
 #include <algorithm>
 #include "convolution_cpu_header.h"
 
-void cpu_scatter_launch(const int n_in, const int n_out, const int c,
+void scatter_cpu(const int n_in, const int n_out, const int c,
                         const float *in_feat, float *out_feat,
                         const int *kmap, const bool transpose)
 {
@@ -20,7 +20,7 @@ void cpu_scatter_launch(const int n_in, const int n_out, const int c,
     }
 }
 
-void cpu_gather_launch(const int n_k, const int n_in, const int c,
+void gather_cpu(const int n_k, const int n_in, const int c,
                        const float *in_feat, float *out_feat,
                        const int *kmap, const bool transpose)
 {
@@ -37,7 +37,7 @@ void cpu_gather_launch(const int n_k, const int n_in, const int c,
     }
 }
 
-void ConvolutionForwardCPU(at::Tensor in_feat, at::Tensor out_feat,
+void sparseconv_forward_cpu(at::Tensor in_feat, at::Tensor out_feat,
                            at::Tensor kernel, at::Tensor neighbor_map,
                            at::Tensor neighbor_offset, const bool transpose)
 {
@@ -98,13 +98,13 @@ void ConvolutionForwardCPU(at::Tensor in_feat, at::Tensor out_feat,
             torch::from_blob(in_buffer.data_ptr<float>(),
                              {neighbor_offset.data_ptr<int>()[i], in_feat.size(1)}, options);
         // gather
-        cpu_gather_launch(in_buffer_activated.size(0), in_feat.size(0), kernel.size(1),
+        gather_cpu(in_buffer_activated.size(0), in_feat.size(0), kernel.size(1),
                           in_feat.data_ptr<float>(), in_buffer_activated.data_ptr<float>(),
                           neighbor_map.data_ptr<int>() + cur_offset, transpose);
         // GEMM
         torch::mm_out(out_buffer_activated, in_buffer_activated, kernel[i]);
         // scatter
-        cpu_scatter_launch(neighbor_offset.data_ptr<int>()[i], out_nrows, kernel.size(2), out_buffer_activated.data_ptr<float>(),
+        scatter_cpu(neighbor_offset.data_ptr<int>()[i], out_nrows, kernel.size(2), out_buffer_activated.data_ptr<float>(),
                            out_feat.data_ptr<float>(), neighbor_map.data_ptr<int>() + cur_offset, transpose);
         cur_offset += 2 * neighbor_offset.data_ptr<int>()[i];
     }
@@ -114,7 +114,7 @@ void ConvolutionForwardCPU(at::Tensor in_feat, at::Tensor out_feat,
       //THCState_getCurrentBlasHandle(at::globalContext().getTHCState());
       at::cuda::getCurrentCUDABlasHandle();
 
-  ConvolutionForwardKernelGPU(
+  sparseconv_forward_cuda_kernel(
       in_feat.data_ptr<float>(), in_feat.size(1), out_feat.data_ptr<float>(),
       out_feat.size(1), kernel.data_ptr<float>(), neighbor_map.data_ptr<int>(), 
       neighbor_offset.data_ptr<int>(), in_feat.size(0), out_feat.size(0), 
@@ -123,7 +123,7 @@ void ConvolutionForwardCPU(at::Tensor in_feat, at::Tensor out_feat,
   */
 }
 
-void ConvolutionBackwardCPU(
+void sparseconv_backward_cpu(
     at::Tensor in_feat, at::Tensor grad_in_feat, at::Tensor grad_out_feat,
     at::Tensor kernel, at::Tensor grad_kernel, at::Tensor neighbor_map,
     at::Tensor neighbor_offset, const bool transpose)
@@ -172,11 +172,11 @@ void ConvolutionBackwardCPU(
                              {neighbor_offset.data_ptr<int>()[i], in_feat.size(1)}, options);
         // gather
 
-        cpu_gather_launch(out_grad_buffer_activated.size(0), grad_out_feat.size(0), kernel.size(2),
+        gather_cpu(out_grad_buffer_activated.size(0), grad_out_feat.size(0), kernel.size(2),
                           grad_out_feat.data_ptr<float>(), out_grad_buffer_activated.data_ptr<float>(),
                           neighbor_map.data_ptr<int>() + cur_offset, !transpose);
 
-        cpu_gather_launch(in_buffer_activated.size(0), in_feat.size(0), kernel.size(1),
+        gather_cpu(in_buffer_activated.size(0), in_feat.size(0), kernel.size(1),
                           in_feat.data_ptr<float>(), in_buffer_activated.data_ptr<float>(),
                           neighbor_map.data_ptr<int>() + cur_offset, transpose);
 
@@ -187,7 +187,7 @@ void ConvolutionBackwardCPU(
         // scatter
         //grad_kernel[i] = kernel_grad_buffer;
 
-        cpu_scatter_launch(neighbor_offset.data_ptr<int>()[i], in_feat.size(0), kernel.size(1), in_grad_buffer_activated.data_ptr<float>(),
+        scatter_cpu(neighbor_offset.data_ptr<int>()[i], in_feat.size(0), kernel.size(1), in_grad_buffer_activated.data_ptr<float>(),
                            grad_in_feat.data_ptr<float>(), neighbor_map.data_ptr<int>() + cur_offset, !transpose);
 
         cur_offset += 2 * neighbor_offset.data_ptr<int>()[i];

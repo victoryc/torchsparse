@@ -8,7 +8,7 @@
 #include <algorithm>
 #include "convolution_gpu.h"
 
-void ConvolutionForwardGPU(at::Tensor in_feat, at::Tensor out_feat,
+void sparseconv_forward_cuda(at::Tensor in_feat, at::Tensor out_feat,
                            at::Tensor kernel, at::Tensor neighbor_map,
                            at::Tensor neighbor_offset, const bool transpose)
 {
@@ -85,7 +85,7 @@ void ConvolutionForwardGPU(at::Tensor in_feat, at::Tensor out_feat,
     }
 }
 
-void ConvolutionBackwardGPU(
+void sparseconv_backward_cuda(
     at::Tensor in_feat, at::Tensor grad_in_feat, at::Tensor grad_out_feat,
     at::Tensor kernel, at::Tensor grad_kernel, at::Tensor neighbor_map,
     at::Tensor neighbor_offset, const bool transpose)

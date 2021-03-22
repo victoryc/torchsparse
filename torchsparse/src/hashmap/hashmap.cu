@@ -116,11 +116,6 @@ __global__ void cuckooInsertKernel_Multi(
     }
     int cur_func = fetch_func(cur_idx, pos_width);
     cur_idx = fetch_val(cur_idx, pos_width) - 1;
-    /*
-    if(cur_idx < 0 || cur_idx >= size){
-        printf("WARNING %d\n", cur_idx);
-    }
-    */
     key[i * size + idx] =
         key_buf[cur_idx]; // make_data(key_buf[cur_idx], cur_func, pos_width);
     val[i * size + idx] = val_buf[cur_idx];
@@ -222,7 +217,6 @@ int CuckooHashTableCuda_Multi::insert_vals(const VTYPE *const keys,
     if (rehash_requests == 0)
       break;
     else {
-      // printf("rehash %d %d\n", rehash_count, rehash_requests);
       rehash_count++;
       gen_hash_funcs();
       cudaMemcpy(_d_hash_func_configs, _hash_func_configs,
@@ -239,7 +233,6 @@ int CuckooHashTableCuda_Multi::insert_vals(const VTYPE *const keys,
   if (d_rehash_requests != NULL)
     cudaFree(d_rehash_requests);
 
-  // printf("%d\n", rehash_count);
   return (rehash_count < MAX_DEPTH) ? rehash_count : ERR_DEPTH;
 }
 

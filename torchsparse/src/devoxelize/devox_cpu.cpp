@@ -4,7 +4,7 @@
 
 //make sure indices is int type
 //feat: (b,c,s) indices: (N, 3) batch_index: (N, ) -> out: (N, c)
-at::Tensor cpu_devoxelize_forward(
+at::Tensor devoxelize_forward_cpu(
     const at::Tensor feat,
     const at::Tensor indices,
     const at::Tensor weight)
@@ -34,7 +34,7 @@ at::Tensor cpu_devoxelize_forward(
 }
 
 //top_grad: (N, c), indices: (N, 3), batch_index: (N, ) -> bottom_grad: (b,c,s), s=r^3
-at::Tensor cpu_devoxelize_backward(
+at::Tensor devoxelize_backward_cpu(
     const at::Tensor top_grad,
     const at::Tensor indices,
     const at::Tensor weight,

@@ -6,14 +6,13 @@
 
 //make sure indices is int type
 //feat: (b,c,s) indices: (N, 3) batch_index: (N, ) -> out: (N, c)
-at::Tensor devoxelize_forward(
+at::Tensor devoxelize_forward_cuda(
     const at::Tensor feat,
     const at::Tensor indices,
     const at::Tensor weight
 )
 {  
   int b = feat.size(0);
-  //printf("%d\n", b);
   int c = feat.size(1);
   int N = indices.size(0);
   
@@ -24,7 +23,7 @@ at::Tensor devoxelize_forward(
     
 
 //top_grad: (N, c), indices: (N, 3), batch_index: (N, ) -> bottom_grad: (b,c,s), s=r^3
-at::Tensor devoxelize_backward(
+at::Tensor devoxelize_backward_cuda(
     const at::Tensor top_grad,
     const at::Tensor indices,
     const at::Tensor weight,

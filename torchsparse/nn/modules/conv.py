@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from ... import SparseTensor
+from ...tensor import SparseTensor
 from .. import functional as F
 
 __all__ = [

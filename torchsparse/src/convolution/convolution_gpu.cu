@@ -253,13 +253,12 @@ __global__ void matmul2(const float *A, const int wA, const int hA,
     atomicAdd(&C[hB * in_row + x], Csub);
 }
 
-void ConvolutionForwardKernelGPU(const float *d_in_feat, int in_nchannel,
-                                 float *d_out_feat, int out_nchannel,
-                                 const float *d_kernel, const int *neighbor_map,
-                                 const int *neighbor_offset,
-                                 const int in_npoints, const int out_npoints,
-                                 const int n_neighbors, const bool transpose,
-                                 cublasHandle_t cuhandle, cudaStream_t stream) {
+void sparseconv_forward_cuda_kernel(
+    const float *d_in_feat, int in_nchannel, float *d_out_feat,
+    int out_nchannel, const float *d_kernel, const int *neighbor_map,
+    const int *neighbor_offset, const int in_npoints, const int out_npoints,
+    const int n_neighbors, const bool transpose, cublasHandle_t cuhandle,
+    cudaStream_t stream) {
   // For the in out buffer, use the pre allocated GPU memory space as thrust
   // resize gives segfault. Also initializing it with torch allows us to
   // allocate memory faster and efficiently.
@@ -267,8 +266,6 @@ void ConvolutionForwardKernelGPU(const float *d_in_feat, int in_nchannel,
   int kernel_volume = n_neighbors, n_active_in_volume, num_kernels,
       neighbor_step = min(out_npoints, in_npoints);
   int cur_offset = 0;
-
-  // printf("%d %d\n", in_buffer_size, in_npoints);
 
   // Iterate through each spatial kernel and get indices for in_map and out_map
 
@@ -295,7 +292,7 @@ void ConvolutionForwardKernelGPU(const float *d_in_feat, int in_nchannel,
   }
 }
 
-void ConvolutionBackwardKernelGPU(
+void sparseconv_backward_cuda_kernel(
     const float *d_in_feat, float *d_grad_in_feat, int in_nchannel,
     const float *d_grad_out_feat, int out_nchannel, float *d_kernel,
     float *d_grad_kernel, const int *neighbor_map, const int *neighbor_offset,

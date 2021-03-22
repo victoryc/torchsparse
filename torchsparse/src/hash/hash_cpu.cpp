@@ -37,7 +37,7 @@ void cpu_kernel_hash_wrapper(int N, int K, const int * data, const int *kernel_o
 }
 
 
-at::Tensor cpu_hash_forward(
+at::Tensor hash_build_cpu(
     const at::Tensor idx
 )
 {  

@@ -3,11 +3,11 @@
 #include <torch/torch.h>
 #include <vector>
 
-at::Tensor cpu_devoxelize_forward(
+at::Tensor devoxelize_forward_cpu(
     const at::Tensor feat,
     const at::Tensor indices,
     const at::Tensor weight);
-at::Tensor cpu_devoxelize_backward(
+at::Tensor devoxelize_backward_cpu(
     const at::Tensor top_grad,
     const at::Tensor indices,
     const at::Tensor weight,

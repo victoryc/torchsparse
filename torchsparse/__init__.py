@@ -1,6 +1,7 @@
 import torch
-from .sparse_tensor import *
+
 from .point_tensor import *
+from .tensor import SparseTensor
 
 __version__ = '1.2.0'
 
@@ -13,6 +14,6 @@ def cat(input_list, dim=1):
     cur_stride = inputs.s
     output_tensor = SparseTensor(
         torch.cat([inputs.F for inputs in input_list], 1), coords, cur_stride)
-    output_tensor.coord_maps = inputs.coord_maps
-    output_tensor.kernel_maps = inputs.kernel_maps
+    output_tensor.cmaps = inputs.cmaps
+    output_tensor.kmaps = inputs.kmaps
     return output_tensor

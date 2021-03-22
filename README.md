@@ -90,12 +90,12 @@ Detailed examples are given in [here](https://github.com/mit-han-lab/e3d/blob/ma
 Sparse hash map query is important in 3D sparse computation. It is mainly used to infer a point's memory location (*i.e.* index) given its coordinates. For example, we use this operation in kernel map construction part of 3D sparse convolution, and also sparse voxelization / devoxelization in [Sparse Point-Voxel Convolution](https://arxiv.org/abs/2007.16100). Here, we provide the following example for hash map API:
 
 ```python
-source_hash = torchsparse.nn.functional.sphash(torch.floor(source_coords).int())
-target_hash = torchsparse.nn.functional.sphash(torch.floor(target_coords).int())
-idx_query = torchsparse.nn.functional.sphashquery(source_hash, target_hash)
+source_hash = torchsparse.nn.functional.hash_build(torch.floor(source_coords).int())
+target_hash = torchsparse.nn.functional.hash_build(torch.floor(target_coords).int())
+idx_query = torchsparse.nn.functional.hash_query(source_hash, target_hash)
 ```
 
-In this example, `sphash` is the function converting integer coordinates to hashing. The `sphashquery(source_hash, target_hash)` performs the hash table lookup. Here, the hash map has key `target_hash` and value corresponding to point indices in the target point cloud tensor. For each point in the `source_coords`, we find the point index in `target_coords` which has the same coordinate as it.
+In this example, `hash_build` is the function converting integer coordinates to hashing. The `hash_query(source_hash, target_hash)` performs the hash table lookup. Here, the hash map has key `target_hash` and value corresponding to point indices in the target point cloud tensor. For each point in the `source_coords`, we find the point index in `target_coords` which has the same coordinate as it.
 
 ### Dummy Training Example
 

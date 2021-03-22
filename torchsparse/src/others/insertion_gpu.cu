@@ -2,9 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-// hashing
-// input N*F float tensor, pointer to output N'*F int64 tensor, N*1 count
-// tensor, N*1 index tensor
 __global__ void insertion_kernel(int N, int c, int s,
                                  const float *__restrict__ data,
                                  const int *__restrict__ idx,
@@ -15,8 +12,9 @@ __global__ void insertion_kernel(int N, int c, int s,
   int j = index % c;
   if (i < N) {
     int pos = idx[i];
-    if (pos < 0 || pos >= s || counts[pos] == 0)
+    if (pos < 0 || pos >= s || counts[pos] == 0) {
       return;
+    }
     atomicAdd(&out[pos * c + j], data[i * c + j] / float(counts[pos]));
   }
 }
@@ -31,8 +29,9 @@ __global__ void insertion_grad_kernel(int N, int c, int s,
   int j = index % c;
   if (i < N) {
     int pos = idx[i];
-    if (pos < 0 || pos >= s || counts[pos] == 0)
+    if (pos < 0 || pos >= s || counts[pos] == 0) {
       return;
+    }
     atomicAdd(&bottom_grad[i * c + j],
               top_grad[pos * c + j] / float(counts[pos]));
   }

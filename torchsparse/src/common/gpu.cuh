@@ -1,12 +1,12 @@
-#ifndef GPU_H_
-#define GPU_H_
+#ifndef _GPU_CUH_
+#define _GPU_CUH_
 
 #include <cublas_v2.h>
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <curand.h>
 #include <cusparse_v2.h>
-#include <driver_types.h> // cuda driver types
+#include <driver_types.h>
 
 #include <thrust/device_vector.h>
 
@@ -14,19 +14,12 @@
 #include <iostream>
 #include <vector>
 
-
-//
-// CUDA macros
-//
-
-// CUDA: various checks for different function calls.
 #define CUDA_CHECK(condition)                                                  \
-  /* Code block avoids redefinition of cudaError_t error */                    \
   {                                                                            \
     cudaError_t error = condition;                                             \
     if (error != cudaSuccess) {                                                \
-      throw std::runtime_error(cudaGetErrorString(error) << " at "   \
-                               << __FILE__ << ":" << __LINE__);                \
+      throw std::runtime_error(cudaGetErrorString(error)                       \
+                               << " at " << __FILE__ << ":" << __LINE__);      \
     }                                                                          \
   }
 
@@ -34,8 +27,8 @@
   {                                                                            \
     cublasStatus_t status = condition;                                         \
     if (status != CUBLAS_STATUS_SUCCESS) {                                     \
-      throw std::runtime_error(cublasGetErrorString(status) << " at "       \
-                               << __FILE__ << ":" << __LINE__);                \
+      throw std::runtime_error(cublasGetErrorString(status)                    \
+                               << " at " << __FILE__ << ":" << __LINE__);      \
     }                                                                          \
   }
 
@@ -43,8 +36,8 @@
   {                                                                            \
     cusparseStatus_t err;                                                      \
     if ((err = (call)) != CUSPARSE_STATUS_SUCCESS) {                           \
-      throw std::runtime_error(cusparseGetErrorString(err) << " at "        \
-                               << __FILE__ << ":" << __LINE__);                \
+      throw std::runtime_error(cusparseGetErrorString(err)                     \
+                               << " at " << __FILE__ << ":" << __LINE__);      \
     }                                                                          \
   }
 
@@ -52,23 +45,21 @@
   {                                                                            \
     curandStatus_t status = condition;                                         \
     if (status != CURAND_STATUS_SUCCESS) {                                     \
-      throw std::runtime_error(curandGetErrorString(status) << " at "       \
-                               << __FILE__ << ":" << __LINE__);                \
+      throw std::runtime_error(curandGetErrorString(status)                    \
+                               << " at " << __FILE__ << ":" << __LINE__);      \
     }                                                                          \
   }
 
-// CUDA: grid stride looping
 #define CUDA_KERNEL_LOOP(i, n)                                                 \
   for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < (n);                 \
        i += blockDim.x * gridDim.x)
 
-// CUDA: check for error after kernel execution and exit loudly if there is one.
 #define CUDA_POST_KERNEL_CHECK                                                 \
   {                                                                            \
     cudaError_t status = cudaPeekAtLastError();                                \
     if (status != cudaSuccess) {                                               \
-      throw std::runtime_error(cudaGetErrorString(status) << " at "  \
-                               << __FILE__ << ":" << __LINE__);                \
+      throw std::runtime_error(cudaGetErrorString(status)                      \
+                               << " at " << __FILE__ << ":" << __LINE__);      \
     }                                                                          \
   }
 
@@ -76,14 +67,12 @@
   try {                                                                        \
     condition;                                                                 \
   } catch (thrust::system_error e) {                                           \
-    throw std::runtime_error("Thrust error: " << e.what() << " at "         \
-                             << __FILE__ << ":" << __LINE__);                  \
+    throw std::runtime_error("Thrust error: " << e.what() << " at "            \
+                                              << __FILE__ << ":" << __LINE__); \
   }
 
-// CUDA: library error reporting.
 const char *cublasGetErrorString(cublasStatus_t error);
 
-// CUSparse error reporting.
 const char *cusparseGetErrorString(cusparseStatus_t error);
 
 constexpr int CUDA_NUM_THREADS = 256;
@@ -91,8 +80,6 @@ constexpr int CUDA_NUM_THREADS = 256;
 constexpr int SHARED_BLOCK_SIZE = 32;
 
 constexpr int BLOCK_SIZE = 32;
-
-
 
 inline int GET_BLOCKS(const int N) {
   return (N + CUDA_NUM_THREADS - 1) / CUDA_NUM_THREADS;
@@ -103,7 +90,6 @@ template <typename Dtype1, typename Dtype2>
 void print(const thrust::device_vector<Dtype1> &v1,
            const thrust::device_vector<Dtype2> &v2);
 
-// AtomicAddition for double with cuda arch <= 600
 #if !defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 600
 #else
 __device__ double atomicAdd(double *address, double val) {
@@ -118,5 +104,4 @@ __device__ double atomicAdd(double *address, double val) {
 }
 #endif
 
-#endif // GPU_H_
-
+#endif
