@@ -90,6 +90,7 @@ def conv3d(inputs: SparseTensor,
         kernel_size = [kernel_size] * 3
     assert isinstance(kernel_size, (list, tuple)) and len(kernel_size) == 3, \
         'kernel_size must be either an integer or a triple of integers'
+    kernel_size = tuple(kernel_size)
     kernel_volume = int(np.prod(kernel_size))
 
     if kernel_volume == 1 and stride == 1 and dilation == 1:
