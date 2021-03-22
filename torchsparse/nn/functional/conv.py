@@ -20,7 +20,7 @@ class SparseConv(Function):
                 neighbor_map,
                 neighbor_offset,
                 sizes,
-                transpose: bool = False):
+                transpose: bool = False) -> None:
         feats = feats.contiguous()
         kernel = kernel.contiguous()
         neighbor_map = neighbor_map.contiguous()
@@ -132,10 +132,10 @@ def conv3d(inputs: SparseTensor,
 
             results = F.sphashquery(queries, references)
 
-            nmaps = torch.nonzero(results != -1)
+            nmaps = torch.nonzero(results != -1).int()
             nmaps[:, 0] = results.view(-1)[nmaps[:, 0] * results.size(1) +
                                            nmaps[:, 1]]
-            sizes = torch.sum(results != -1, dim=1)
+            sizes = torch.sum(results != -1, dim=1).int()
 
             sizes = sizes.cpu()
             kernel_map = [nmaps, sizes, (feats.shape[0], coords.shape[0])]
