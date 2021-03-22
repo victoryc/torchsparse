@@ -17,14 +17,14 @@ class SparseConv(Function):
     def forward(ctx,
                 feats,
                 kernel,
-                neighbor_map,
-                neighbor_offset,
+                nbmaps: torch.Tensor,
+                nbsizes: torch.Tensor,
                 sizes,
                 transpose: bool = False) -> None:
         feats = feats.contiguous()
         kernel = kernel.contiguous()
-        neighbor_map = neighbor_map.contiguous()
-        neighbor_offset = neighbor_offset.contiguous()
+        nbmaps = nbmaps.int().contiguous()
+        nbsizes = nbsizes.int().contiguous()
         if not transpose:
             out = torch.zeros(sizes[1], kernel.size(-1), device=feats.device)
         else:
@@ -32,17 +32,16 @@ class SparseConv(Function):
             out = torch.zeros(sizes[0], kernel.size(-1), device=feats.device)
 
         if feats.device.type == 'cuda':
-            torchsparse_backend.sparseconv_forward(feats, out, kernel,
-                                                   neighbor_map,
-                                                   neighbor_offset, transpose)
+            torchsparse_backend.sparseconv_forward(feats, out, kernel, nbmaps,
+                                                   nbsizes, transpose)
         else:
             # use the native pytorch XLA APIs for the TPU.
             cur_st = 0
             for kernel_idx in range(kernel.shape[0]):
-                cur_ed = cur_st + neighbor_offset[kernel_idx]
-                in_map = neighbor_map[cur_st:cur_ed, 0].long()
-                out_map = neighbor_map[cur_st:cur_ed, 1].long()
-                cur_st += neighbor_offset[kernel_idx]
+                cur_ed = cur_st + nbsizes[kernel_idx]
+                in_map = nbmaps[cur_st:cur_ed, 0].long()
+                out_map = nbmaps[cur_st:cur_ed, 1].long()
+                cur_st += nbsizes[kernel_idx]
 
                 if transpose:
                     in_map, out_map = out_map, in_map
@@ -53,8 +52,7 @@ class SparseConv(Function):
                 # scatter
                 out[out_map] += cur_feat
 
-        ctx.for_backwards = (feats, kernel, neighbor_map, neighbor_offset,
-                             transpose)
+        ctx.for_backwards = (feats, kernel, nbmaps, nbsizes, transpose)
         return out
 
     @staticmethod
@@ -132,13 +130,13 @@ def conv3d(inputs: SparseTensor,
 
             results = F.sphashquery(queries, references)
 
-            nmaps = torch.nonzero(results != -1).int()
-            nmaps[:, 0] = results.view(-1)[nmaps[:, 0] * results.size(1) +
-                                           nmaps[:, 1]]
-            sizes = torch.sum(results != -1, dim=1).int()
+            nbsizes = torch.sum(results != -1, dim=1)
+            nbmaps = torch.nonzero(results != -1)
+            nbmaps[:, 0] = results.view(-1)[nbmaps[:, 0] * results.size(1) +
+                                            nbmaps[:, 1]]
 
-            sizes = sizes.cpu()
-            kernel_map = [nmaps, sizes, (feats.shape[0], coords.shape[0])]
+            nbsizes = nbsizes.cpu()
+            kernel_map = [nbmaps, nbsizes, (feats.shape[0], coords.shape[0])]
 
         feats = sparse_conv(feats, kernel, kernel_map[0], kernel_map[1],
                             kernel_map[2], transpose)
