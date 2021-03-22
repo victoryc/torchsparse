@@ -20,7 +20,6 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
     m.def("sparseconv_cpu_forward", &ConvolutionForwardCPU, "point cloud convolution forward (CPU)");
     m.def("sparseconv_cpu_backward", &ConvolutionBackwardCPU, "point cloud convolution backward (CPU)");
     m.def("cpu_kernel_hash_forward", &cpu_kernel_hash_forward, "Kernel Hashing forward (CPU)");
-    m.def("cpu_convert_map_forward", &cpu_convert_map_forward, "Convert neighbor map forward (CPU)");
     m.def("cpu_insertion_forward", &cpu_insertion_forward, "Insertion forward (CPU)");
     m.def("cpu_insertion_backward", &cpu_insertion_backward, "Insertion backward (CPU)");
     m.def("hash_query_cpu", &hash_query_cpu, "hash query forward (CPU)");
@@ -42,5 +41,4 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
     m.def("cpu_insertion_forward", &cpu_insertion_forward, "Insertion forward (CPU)");
     m.def("cpu_insertion_backward", &cpu_insertion_backward, "Insertion backward (CPU)");
     m.def("hash_query_cuda", &hash_query_cuda, "hash query forward (CUDA)");
-    m.def("convert_map_forward", &convert_map_forward, "Convert neighbor map forward (CUDA)");
 }
