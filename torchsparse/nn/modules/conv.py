@@ -88,7 +88,7 @@ class ToBEVReduction(nn.Module):
         return 'ToBEVReduction(dim = %d)' % self.dim
 
     def forward(self, inputs: SparseTensor):
-        coords, feats, stride = inputs.C, inputs.F, inputs.s
+        coords, feats, stride = inputs.coords, inputs.feats, inputs.stride
 
         coords = coords.clone()
         coords[:, self.dim] = 0
@@ -174,7 +174,7 @@ class ToDenseBEVConvolution(nn.Module):
         self.kernel.data.uniform_(-std, std)
 
     def forward(self, inputs: SparseTensor):
-        coords, feats, stride = inputs.C, inputs.F, inputs.s
+        coords, feats, stride = inputs.coords, inputs.feats, inputs.stride
 
         kernel = torch.index_select(self.kernel, 0,
                                     (coords[:, self.dim] / stride).long())

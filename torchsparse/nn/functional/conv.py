@@ -20,7 +20,7 @@ class SparseConv(Function):
                 neighbor_map,
                 neighbor_offset,
                 sizes,
-                transpose=False):
+                transpose: bool = False):
         feats = feats.contiguous()
         kernel = kernel.contiguous()
         if not transpose:
@@ -84,7 +84,7 @@ def conv3d(inputs: SparseTensor,
            stride: int = 1,
            dilation: int = 1,
            transpose: bool = False) -> SparseTensor:
-    coords, feats = inputs.C, inputs.F
+    coords, feats = inputs.coords, inputs.feats
 
     if isinstance(kernel_size, int):
         kernel_size = [kernel_size] * 3
