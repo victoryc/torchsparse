@@ -68,7 +68,8 @@ class SparseConv(Function):
                                                     grad_out.contiguous(),
                                                     kernel, grad_kernel,
                                                     neighbor_map,
-                                                    neighbor_offset, transpose)
+                                                    neighbor_offset.cpu(),
+                                                    transpose)
         else:
             raise NotImplementedError
         return grad_features, grad_kernel, None, None, None, None
