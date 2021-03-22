@@ -23,6 +23,8 @@ class SparseConv(Function):
                 transpose: bool = False):
         feats = feats.contiguous()
         kernel = kernel.contiguous()
+        neighbor_map = neighbor_map.contiguous()
+        neighbor_offset = neighbor_offset.contiguous()
         if not transpose:
             out = torch.zeros(sizes[1], kernel.size(-1), device=feats.device)
         else:
@@ -128,10 +130,15 @@ def conv3d(inputs: SparseTensor,
                 coords = F.spdownsample(coords, stride * inputs.stride)
             queries = F.sphash(coords, offsets)
 
-            idx_query = F.sphashquery(queries, references)
-            idx_query = list(F.convert_neighbor_map(idx_query))
-            idx_query[1] = idx_query[1].cpu()
-            kernel_map = idx_query + [(feats.shape[0], coords.shape[0])]
+            results = F.sphashquery(queries, references)
+
+            nmaps = torch.nonzero(results != -1)
+            nmaps[:, 0] = results.view(-1)[nmaps[:, 0] * results.size(1) +
+                                           nmaps[:, 1]]
+            sizes = torch.sum(results != -1, dim=1)
+
+            sizes = sizes.cpu()
+            kernel_map = [nmaps, sizes, (feats.shape[0], coords.shape[0])]
 
         feats = sparse_conv(feats, kernel, kernel_map[0], kernel_map[1],
                             kernel_map[2], transpose)

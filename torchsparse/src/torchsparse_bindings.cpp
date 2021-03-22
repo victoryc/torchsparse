@@ -20,7 +20,7 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("cpu_insertion_backward", &cpu_insertion_backward, "Insertion backward (CPU)");
     m.def("cpu_devoxelize_forward", &cpu_devoxelize_forward, "Devoxelization forward (CPU)");
     m.def("cpu_devoxelize_backward", &cpu_devoxelize_backward, "Devoxelization backward (CPU)");
-    m.def("cpu_query_forward", &cpu_query_forward, "hash query forward (CPU)");
+    m.def("hash_query_cpu", &hash_query_cpu, "hash query forward (CPU)");
     m.def("cpu_count_forward", &cpu_count_forward, "count forward (CPU)");
 }
 

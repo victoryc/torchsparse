@@ -60,12 +60,3 @@ at::Tensor cpu_kernel_hash_forward(
   return out;
 }
 
-
-
-/*
-PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-  m.def("hash_forward", &hash_forward, "Hashing forward (CUDA)");
-  m.def("kernel_hash_forward", &kernel_hash_forward, "Kernel Hashing forward (CUDA)");
-}
-*/
-

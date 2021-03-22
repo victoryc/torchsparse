@@ -1,6 +1,5 @@
 from .activation import *
 from .conv import *
-from .convert_neighbor_map import *
 from .count import *
 from .crop import *
 from .devox import *

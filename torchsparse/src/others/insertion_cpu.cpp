@@ -7,8 +7,6 @@ at::Tensor cpu_insertion_forward(
     const at::Tensor idx,
     const at::Tensor counts)
 {
-  //return group_point_forward_gpu(points, indices);
-
   int N = inputs.size(0);
   int c = inputs.size(1);
   int N1 = counts.size(0);
@@ -33,8 +31,6 @@ at::Tensor cpu_insertion_backward(
     const at::Tensor counts,
     const int N)
 {
-  //return group_point_forward_gpu(points, indices);
-
   int c = top_grad.size(1);
   int N1 = counts.size(0);
   at::Tensor bottom_grad = torch::zeros({N, c}, at::device(idx.device()).dtype(at::ScalarType::Float));
