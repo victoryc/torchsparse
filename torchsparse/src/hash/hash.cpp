@@ -2,7 +2,7 @@
 #include <vector>
 #include "hash_gpu.h"
 
-at::Tensor hash_forward(
+at::Tensor hash_build_cuda(
     const at::Tensor idx
 )
 {  
@@ -13,7 +13,7 @@ at::Tensor hash_forward(
 }
 
 
-at::Tensor kernel_hash_forward(
+at::Tensor hash_build_kernel_cuda(
     const at::Tensor idx,
     const at::Tensor kernel_offset
 )

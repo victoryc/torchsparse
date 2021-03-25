@@ -48,7 +48,7 @@ at::Tensor hash_build_cpu(
 }
 
 
-at::Tensor cpu_kernel_hash_forward(
+at::Tensor hash_build_kernel_cpu(
     const at::Tensor idx,
     const at::Tensor kernel_offset
 )

@@ -1,9 +1,7 @@
 #include <torch/torch.h>
 #include <vector>
-#include "devox_cpu_header.h"
+#include "devoxelize_cpu.h"
 
-//make sure indices is int type
-//feat: (b,c,s) indices: (N, 3) batch_index: (N, ) -> out: (N, c)
 at::Tensor devoxelize_forward_cpu(
     const at::Tensor feat,
     const at::Tensor indices,

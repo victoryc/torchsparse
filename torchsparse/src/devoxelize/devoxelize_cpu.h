@@ -1,5 +1,5 @@
-#ifndef _SPARSE_DEVOXELIZE_CPU
-#define _SPARSE_DEVOXELIZE_CPU
+#ifndef _DEVOXELIZE_CPU_H_
+#define _DEVOXELIZE_CPU_H_
 #include <torch/torch.h>
 #include <vector>
 

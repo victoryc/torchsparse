@@ -1,6 +1,6 @@
 #include <torch/torch.h>
 #include <vector>
-#include "devox_gpu.h"
+#include "devoxelize_cuda.h"
 
 
 

@@ -7,8 +7,8 @@
 #include "others/query_cpu_header.h"
 #include "convolution/convolution_gpu.h"
 #include "hash/hash_gpu.h"
-#include "devoxelize/devox_gpu.h"
-#include "devoxelize/devox_cpu_header.h"
+#include "devoxelize/devoxelize_cpu.h"
+#include "devoxelize/devoxelize_cuda.h"
 #include "others/count_gpu.h"
 #include "others/insertion_gpu.h"
 #include "others/insertion_cpu_header.h"
@@ -23,8 +23,8 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
     m.def("sparseconv_backward_cuda", &sparseconv_backward_cuda, "point cloud convolution backward (CUDA)");
     m.def("hash_build_cpu", &hash_build_cpu, "Hashing forward (CPU)");
     m.def("hash_build_cuda", &hash_build_cuda, "Hashing forward (CUDA)");
-    m.def("cpu_kernel_hash_forward", &cpu_kernel_hash_forward, "Kernel Hashing forward (CPU)");
-    m.def("kernel_hash_forward", &kernel_hash_forward, "Kernel Hashing forward (CUDA)");
+    m.def("hash_build_kernel_cpu", &hash_build_kernel_cpu, "Kernel Hashing forward (CPU)");
+    m.def("hash_build_kernel_cuda", &hash_build_kernel_cuda, "Kernel Hashing forward (CUDA)");
     m.def("hash_query_cpu", &hash_query_cpu, "hash query forward (CPU)");
     m.def("hash_query_cuda", &hash_query_cuda, "hash query forward (CUDA)");
     m.def("voxelize_forward_cpu", &voxelize_forward_cpu, "Insertion forward (CPU)");

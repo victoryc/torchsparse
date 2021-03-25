@@ -13,7 +13,7 @@ def hash_build(coords: torch.Tensor, offsets: Optional[torch.Tensor] = None):
 
     if offsets is None:
         if coords.device.type == 'cuda':
-            return torchsparse_backend.hash_forward(coords)
+            return torchsparse_backend.hash_build_cuda(coords)
         elif coords.device.type == 'cpu':
             return torchsparse_backend.hash_build_cpu(coords)
         else:
@@ -21,15 +21,15 @@ def hash_build(coords: torch.Tensor, offsets: Optional[torch.Tensor] = None):
                 coords.device)
     else:
         if 'cuda' in str(coords.device):
-            return torchsparse_backend.kernel_hash_forward(
+            return torchsparse_backend.hash_build_kernel_cuda(
                 coords.contiguous(), offsets.contiguous())
         elif 'cpu' in str(coords.device):
-            return torchsparse_backend.cpu_kernel_hash_forward(
+            return torchsparse_backend.hash_build_kernel_cpu(
                 coords.int().contiguous(),
                 offsets.int().contiguous())
         else:
             device = coords.device
-            return torchsparse_backend.cpu_kernel_hash_forward(
+            return torchsparse_backend.hash_build_kernel_cpu(
                 coords.int().contiguous().cpu(),
                 offsets.int().contiguous().cpu()).to(device)
 

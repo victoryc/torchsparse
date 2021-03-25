@@ -2,8 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-// counting
-// input N*3 int32 tensor output N*1 int64 tensor
 __global__ void count_kernel(int N, const int *__restrict__ data,
                              int *__restrict__ out) {
   int i = blockDim.x * blockIdx.x + threadIdx.x;
